@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoject</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 buttons in a row */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button, input[type="range"] {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%; /* Full width inside the grid cell */
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:active {
+            background-color: #003f80;
+        }
+
+        #canvas {
+            border: 1px solid #ccc;
+            background-color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        #start, #stop, #save {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+
+<body>
+<div id="controls">
+    <button class="imgBtn" data-imgsrc="1.jpg">Image 1</button>
+    <button class="imgBtn" data-imgsrc="2.jpg">Image 2</button>
+    <button class="imgBtn" data-imgsrc="3.jpg">Image 3</button>
+    <button class="imgBtn" data-imgsrc="4.jpg">Image 4</button>
+    <button class="imgBtn" data-imgsrc="5.jpg">Image 5</button>
+    <button class="imgBtn" data-imgsrc="6.jpg">Image 6</button>
+    <button class="imgBtn" data-imgsrc="7.jpg">Image 7</button>
+    <button class="imgBtn" data-imgsrc="8.jpg">Image 8</button>
+    <button class="imgBtn" data-imgsrc="9.jpg">Image 9</button>
+    <button class="imgBtn" data-imgsrc="10.jpg">Image 10</button>
+    <div style="margin-top: 20px;">
+        <label for="brushSize">Brush Size:</label>
+        <input type="range" id="brushSize" min="1" max="50" value="10">
+    </div>
+</div>
+
+
+<canvas id="canvas" width="800" height="500"></canvas>
+<button id="start">Start</button>
+<button id="stop">Stop</button>
+<button id="save">Save</button>
+
+<script>
+    // Your existing JavaScript
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+let customPattern;
+
+// Mouse Events
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('mousemove', draw);
+
+// Touch Events
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startDrawing();
+});
+canvas.addEventListener('touchend', stopDrawing);
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    draw(e.touches[0]);
+});
+
+document.getElementById('brushSize').addEventListener('input', (event) => {
+    ctx.lineWidth = event.target.value;
+});
+
+const buttons = document.querySelectorAll('.imgBtn');
+buttons.forEach(btn => {
+    btn.addEventListener('click', function() {
+        const imgSrc = this.getAttribute('data-imgsrc');
+
+        const img = new Image();
+        img.onload = function() {
+            img.width = canvas.width;
+            img.height = canvas.height;
+
+            customPattern = ctx.createPattern(img, 'no-repeat');
+            ctx.strokeStyle = customPattern;
+        }
+        img.src = imgSrc;
+    });
+});
+
+function startDrawing() {
+    isDrawing = true;
+    ctx.lineCap = 'round'; // To create smoother joints
+}
+
+function stopDrawing() {
+    isDrawing = false;
+    ctx.beginPath();
+}
+
+function draw(event) {
+    if (!isDrawing) return;
+    let x = event.clientX ? event.clientX - canvas.offsetLeft : event.pageX - canvas.offsetLeft;
+    let y = event.clientY ? event.clientY - canvas.offsetTop : event.pageY - canvas.offsetTop;
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+}
+
+// Additional variables for automatic drawing
+let x = 0;
+let y = canvas.height / 2;
+let direction = 1; // 1 is right, -1 is left
+let autoDrawing = false;
+
+function automaticDrawing() {
+    if (!autoDrawing) return;
+
+    // Random factor for Bezier control points
+    let randomness = 50;
+
+    let cp1x = x + Math.random() * randomness * direction;
+    let cp1y = y + Math.random() * randomness * direction;
+    let cp2x = x + Math.random() * randomness * direction;
+    let cp2y = y - Math.random() * randomness * direction;
+
+    x += Math.random() * 30 * direction; // increment x with some randomness
+    y += (Math.random() - 0.5) * 30;     // random increment for y
+
+    ctx.lineWidth = 5 + Math.random() * 5; // variable stroke width
+    ctx.strokeStyle = customPattern || 'black'; // Use customPattern if set
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+    ctx.stroke();
+
+    // If reached end or beginning of canvas, change direction
+    if (x > canvas.width || x < 0) {
+        direction = -direction;
+    }
+
+    requestAnimationFrame(automaticDrawing);
+}
+
+document.getElementById('start').addEventListener('click', () => {
+    autoDrawing = true;
+    automaticDrawing();
+});
+
+document.getElementById('stop').addEventListener('click', () => {
+    autoDrawing = false;
+});
+
+document.getElementById('save').addEventListener('click', function() {
+    const dataURL = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataURL;
+
+    // Get current date and time
+    const now = new Date();
+    const filename = `${now.getMonth()+1}${now.getDate()}${now.getFullYear()}_${now.getHours()}${now.getMinutes()}${now.getSeconds()}.png`;
+
+    a.download = filename; // Use the formatted date and time for the filename
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+
+    function getFormattedDateTime() {
+        const now = new Date();
+        return `${now.getDate().toString().padStart(2, '0')}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getFullYear().toString().substring(2)}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
+    }
+
+    document.getElementById('save').addEventListener('click', function() {
+        const dataURL = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataURL;
+        a.download = `${getFormattedDateTime()}.png`; // Use the formatted date and time as filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    });
+</script>
+
+</body>
+</html>
